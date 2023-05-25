@@ -1,0 +1,81 @@
+
+  CREATE OR REPLACE FORCE EDITIONABLE VIEW "TASY"."POLIPB_CATE1097_V" ("CD_REF", "DT_REF", "DS_SETOR_ATENDIMENTO", "NR_ATENDIMENTO", "DS_CLASSIF_ITEM", "CD_ITEM", "DS_ITEM", "QT_ITEM", "VL_UNITARIO", "DS_APONTADO_CTB", "DS_GRUPO_REC", "DT_PROCEDIMENTO") AS 
+  select  1 cd_ref,
+		a.dt_procedimento dt_ref,
+        'UTI' ds_setor_atendimento,
+        a.nr_atendimento,
+        case
+        when c.cd_setor_atendimento in (43,99,42,66,67,69,102) then
+            'Exames'
+        when a.cd_procedimento in (40901106,40101010,211020036,702040240) then
+            'Exames'
+        else
+            decode(e.ie_classificacao, '1', 'Procedimento', '2', 'Serviços hospitalares')
+        end as ds_classif_item,
+        a.cd_procedimento cd_item,
+        e.ds_procedimento ds_item,
+        a.qt_procedimento qt_item,
+        --v1 - (a.vl_procedimento / a.qt_procedimento) vl_unitario,
+		--v2 - abaixo
+		case
+			when (e.ie_origem_proced = 7) then
+				(select max(x.vl_procedimento) from preco_amb x where x.cd_procedimento = a.cd_procedimento and x.ie_origem_proced = a.ie_origem_proced and x.cd_edicao_amb = 2010)
+			else
+				(a.vl_procedimento / a.qt_procedimento)
+		end as vl_unitario,
+        decode(a.vl_procedimento, 0, 'Não', 'Sim') ds_apontado_ctb,
+        decode(a.vl_procedimento, 0, '', f.ds_grupo_receita) ds_grupo_rec,
+        a.dt_procedimento
+from    procedimento_paciente a,
+        atendimento_paciente b,
+        atend_paciente_unidade c,
+        setor_atendimento d,
+        procedimento e,
+        grupo_receita f
+where   a.nr_atendimento = b.nr_atendimento
+and     b.nr_atendimento = c.nr_atendimento
+and     c.cd_setor_atendimento = d.cd_setor_atendimento
+and     a.cd_procedimento = e.cd_procedimento
+and     a.ie_origem_proced = e.ie_origem_proced
+and     e.nr_seq_grupo_rec = f.nr_sequencia(+)
+and     a.nr_seq_atepacu = c.nr_seq_interno
+and     a.cd_setor_paciente = 6
+and     a.cd_setor_atendimento in (6,8,42,43,64,66,67,69,70,99,102,113,127)
+and     (((e.ie_classificacao = '1' and e.cd_tipo_procedimento in (12,92,27,3,2,31,6,20)) and (a.cd_procedimento not in (40302016))) or (a.cd_procedimento in (99000007,99000002))   )
+and     ((c.ie_passagem_setor = 'N' and a.cd_setor_atendimento = 6) or (c.ie_passagem_setor = 'S'))
+and     a.qt_procedimento <> 0
+and     a.cd_motivo_exc_conta is null
+union all
+select  2 cd_ref,
+		a.dt_atendimento dt_ref,
+        'UTI' ds_setor_atendimento,
+        a.nr_atendimento,
+        decode(e.ie_tipo_material, '1', 'Material','7', 'Material','10', 'Material','2', 'Medicamento','8', 'Medicamento','3', 'Medicamento','0', 'Medicamento','6', 'Medicamento','9', 'Medicamento','Material') ds_classif_item,
+        a.cd_material cd_item,
+        e.ds_material ds_item,
+        a.qt_material qt_item,
+        --v1 - obter_custo_medio_material(b.cd_estabelecimento, sysdate, a.cd_material, e.ie_consignado) vl_unitario,
+		--v2 - obter_custo_medio_material(b.cd_estabelecimento, a.dt_atendimento, a.cd_material, e.ie_consignado) vl_unitario,
+		--v3 - abaixo
+		(select	round(max(x.vl_estoque/qt_estoque),2) from resumo_movto_estoque x where x.dt_mesano_referencia = trunc(a.dt_atendimento,'month') and x.cd_estabelecimento = b.cd_estabelecimento and x.cd_operacao_estoque = 4 and x.cd_material = a.cd_material) vl_unitario,
+        decode(a.vl_unitario, 0, 'Não', 'Sim') ds_apontado_ctb,
+        decode(a.vl_unitario, 0, '', f.ds_grupo_receita) ds_grupo_rec,
+        a.dt_atendimento
+from    material_atend_paciente a,
+        atendimento_paciente b,
+        atend_paciente_unidade c,
+        setor_atendimento d,
+        material e,
+        grupo_receita f
+where   a.nr_atendimento = b.nr_atendimento
+and     b.nr_atendimento = c.nr_atendimento
+and     c.cd_setor_atendimento = d.cd_setor_atendimento
+and     a.cd_material = e.cd_material
+and     e.nr_seq_grupo_rec = f.nr_sequencia(+)
+and     a.nr_seq_atepacu = c.nr_seq_interno
+and     a.cd_setor_paciente = 6
+and     c.cd_setor_atendimento = 6
+and     c.ie_passagem_setor = 'N'
+and     a.qt_material <> 0
+and     a.cd_motivo_exc_conta is null;
+
