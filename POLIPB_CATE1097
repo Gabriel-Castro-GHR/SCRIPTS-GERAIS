@@ -1,0 +1,17 @@
+select to_char(a.dt_ref, 'yyyy') dt_ano, 
+upper(to_char(to_date('01/' || :DT_FILTRO || ' 00:00:00', 
+'dd/mm/yyyy hh24:mi:ss'), 'mon')) dt_mes,
+ a.ds_setor_atendimento,
+ a.nr_atendimento,
+ a.ds_classif_item, 
+ a.cd_item,
+ a.ds_item,
+ to_char(a.dt_ref, 'dd/mm/yyyy hh24:mi:ss') dt_conta, 
+ a.qt_item, a.vl_unitario, 
+ (a.qt_item * a.vl_unitario) vl_total,
+ a.ds_apontado_ctb, 
+ a.ds_grupo_rec, 
+ a.dt_ref, 
+ cd_ref 
+ from polipb_cate1097_v a 
+ where a.dt_ref between trunc(to_date('01/' || :DT_FILT 
